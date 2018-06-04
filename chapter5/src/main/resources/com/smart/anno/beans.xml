@@ -13,6 +13,6 @@
    <!-- context:component-scan base-package="com.smart">
        <context:include-filter type="regex" expression="com\.smart\.anno.*Dao"/>
        <context:include-filter type="regex" expression="com\.smart\.anno.*Service"/>
-       <context:exclude-filter type="aspectj" expression="com.smart..*Controller+"/>
+       <context:exclude-filter type="aspectj" expression="com.smart..*mvcController+"/>
    </context:component-scan -->
 </beans>
