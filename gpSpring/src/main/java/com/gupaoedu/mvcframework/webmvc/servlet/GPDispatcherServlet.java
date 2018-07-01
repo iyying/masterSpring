@@ -1,5 +1,8 @@
 package com.gupaoedu.mvcframework.webmvc.servlet;
 
+import com.gupaoedu.mvcframework.webmvc.annotation.GPController;
+import com.gupaoedu.mvcframework.webmvc.annotation.GPService;
+
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -9,14 +12,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 public class GPDispatcherServlet extends HttpServlet {
 
     private Properties contextConfig = new Properties();
     private List<String> classNames = new ArrayList<String>();
+    private Map<String, Object> ioc = new HashMap<String, Object>();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -55,6 +57,21 @@ public class GPDispatcherServlet extends HttpServlet {
             for (String className : classNames) {
                 Class<?> clazz = Class.forName(className);
                 //有注解的类才初始化
+                if (clazz.isAnnotationPresent(GPController.class)) {
+                    Object obj = clazz.newInstance();
+                    // 初始化以后需要放到IOC容器中
+                    // key默认是类名的首字母小写
+                    String beanName = lowerFirstCase(clazz.getSimpleName());
+                    ioc.put(beanName,obj);
+
+                } else if (clazz.isAnnotationPresent(GPService.class)){
+                    // 1、默认首字母小写
+                    // 2、接口要是把实现类赋值
+                    // 3、如果自定义，优先用自定义的名字
+
+                } else {
+                    continue;
+                }
 
             }
         } catch(Exception e) {
@@ -91,5 +108,11 @@ public class GPDispatcherServlet extends HttpServlet {
                 }
             }
         }
+    }
+
+    private String lowerFirstCase(String str) {
+        char[] chars = str.toCharArray();
+        chars[0] += 32;
+        return String.valueOf(chars);
     }
 }
