@@ -1,5 +1,6 @@
 package com.gupaoedu.mvcframework.webmvc.servlet;
 
+import com.gupaoedu.mvcframework.webmvc.annotation.GPAutowired;
 import com.gupaoedu.mvcframework.webmvc.annotation.GPController;
 import com.gupaoedu.mvcframework.webmvc.annotation.GPService;
 
@@ -11,6 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.*;
 
@@ -46,9 +48,45 @@ public class GPDispatcherServlet extends HttpServlet {
     }
 
     private void initHandlerMapping() {
+
+        if (ioc.isEmpty()) { return; }
+
+        // 处理Controller
+        for (Map.Entry<String,Object> entry : ioc.entrySet()) {
+
+
+        }
     }
 
     private void doAutowired() {
+        if (ioc.isEmpty()) { return; }
+        for (Map.Entry<String,Object> entry : ioc.entrySet()) {
+            Field[] fields = entry.getValue().getClass().getDeclaredFields();
+
+            for (Field field : fields) {
+                if(!field.isAnnotationPresent(GPAutowired.class)) { continue; }
+
+                GPAutowired autowired = field.getAnnotation(GPAutowired.class);
+                String beanName = autowired.value().trim();
+                if("".equals(beanName)) {
+                    beanName = field.getType().getName();
+                }
+
+                field.setAccessible(true);
+
+                try {
+                    field.set(entry.getValue(), ioc.get(beanName));
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                    continue;
+                }
+
+
+
+            }
+        }
+
+
     }
 
     private void doInstance() {
@@ -68,6 +106,23 @@ public class GPDispatcherServlet extends HttpServlet {
                     // 1、默认首字母小写
                     // 2、接口要是把实现类赋值
                     // 3、如果自定义，优先用自定义的名字
+
+                    GPService service = clazz.getAnnotation(GPService.class);
+                    String beanName = service.value();
+
+                    if("".equals(beanName.trim())) {
+                        beanName = lowerFirstCase(clazz.getSimpleName());
+                    }
+
+                    Object instance = clazz.newInstance();
+
+                    ioc.put(beanName, instance);
+
+                    // 解决了子类引用赋值给父类的问题
+                    Class<?>[] interfaces = clazz.getInterfaces();
+                    for (Class<?> i : interfaces) {
+                        ioc.put(i.getName(), instance);
+                    }
 
                 } else {
                     continue;
