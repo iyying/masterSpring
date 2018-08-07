@@ -2,6 +2,7 @@ package com.gupaoedu.mvcframework.webmvc.servlet;
 
 import com.gupaoedu.mvcframework.webmvc.annotation.GPAutowired;
 import com.gupaoedu.mvcframework.webmvc.annotation.GPController;
+import com.gupaoedu.mvcframework.webmvc.annotation.GPRequestMapping;
 import com.gupaoedu.mvcframework.webmvc.annotation.GPService;
 
 import javax.servlet.ServletConfig;
@@ -13,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.*;
 
@@ -21,6 +23,7 @@ public class GPDispatcherServlet extends HttpServlet {
     private Properties contextConfig = new Properties();
     private List<String> classNames = new ArrayList<String>();
     private Map<String, Object> ioc = new HashMap<String, Object>();
+    private Map<String, Method> handleMapping = new HashMap<String, Method>();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -30,11 +33,24 @@ public class GPDispatcherServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
-        doDispatch();
+        try {
+            doDispatch(req, resp);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    private void doDispatch(){
+    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws Exception{
+        String url = req.getRequestURI();
+        String contextPath = req.getContextPath();
+        url = url.replace(contextPath, "").replaceAll("/+", "/");
 
+        if (!handleMapping.containsKey(url)) {
+            resp.getWriter().write("404");
+            return;
+        }
+
+        System.out.println(handleMapping.get(url));
     }
     @Override
     public void init(ServletConfig config) throws ServletException {
@@ -45,6 +61,8 @@ public class GPDispatcherServlet extends HttpServlet {
         doInstance();
         doAutowired();
         initHandlerMapping();
+
+        System.out.println("Spring has startup");
     }
 
     private void initHandlerMapping() {
@@ -53,7 +71,29 @@ public class GPDispatcherServlet extends HttpServlet {
 
         // 处理Controller
         for (Map.Entry<String,Object> entry : ioc.entrySet()) {
+            Class<?> clazz = entry.getValue().getClass();
 
+            if(!clazz.isAnnotationPresent(GPController.class)) {
+                continue;
+            }
+
+            String baseUrl = "";
+            if (clazz.isAnnotationPresent(GPRequestMapping.class)) {
+                GPRequestMapping gpRequestMapping = clazz.getAnnotation(GPRequestMapping.class);
+                baseUrl = gpRequestMapping.value();
+            }
+
+            Method[] methods = clazz.getMethods();
+            for (Method method : methods) {
+                if (method.isAnnotationPresent(GPRequestMapping.class)) {
+                    GPRequestMapping gpRequestMapping = method.getAnnotation(GPRequestMapping.class);
+                    String url = gpRequestMapping.value();
+
+                    url = baseUrl + url;
+                    handleMapping.put(url, method);
+                    System.out.println("Mapped: url=" + url + ", method=" + method);
+                }
+            }
 
         }
     }
